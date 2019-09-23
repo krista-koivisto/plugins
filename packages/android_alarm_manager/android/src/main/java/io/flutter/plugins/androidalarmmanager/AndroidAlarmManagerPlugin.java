@@ -117,7 +117,7 @@ public class AndroidAlarmManagerPlugin implements MethodCallHandler, ViewDestroy
         // is running. From this point forward, the Android side of this plugin can send
         // callback handles through the background method channel, and the Dart side will execute
         // the Dart methods corresponding to those callback handles.
-        AlarmService.onInitialized();
+        AlarmService.onInitialized(mContext);
         result.success(true);
       } else if (method.equals("Alarm.periodic")) {
         // This message indicates that the Flutter app would like to schedule a periodic

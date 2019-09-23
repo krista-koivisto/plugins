@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
+import android.os.PowerManager;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -37,6 +38,7 @@ public class AlarmService extends JobIntentService {
   private static final String SHARED_PREFERENCES_KEY = "io.flutter.android_alarm_manager_plugin";
   private static final int JOB_ID = 1984; // Random job ID.
   private static final Object sPersistentAlarmsLock = new Object();
+  private static  PowerManager.WakeLock screenWakeLock;
 
   private static AtomicBoolean sIsIsolateRunning = new AtomicBoolean(false);
 
@@ -114,14 +116,14 @@ public class AlarmService extends JobIntentService {
    * AlarmService.initialized} message. Processes all alarm events that came in while the isolate
    * was starting.
    */
-  public static void onInitialized() {
+  public static void onInitialized(Context context) {
     Log.i(TAG, "AlarmService started!");
     sIsIsolateRunning.set(true);
     synchronized (sAlarmQueue) {
       // Handle all the alarm events received before the Dart isolate was
       // initialized, then clear the queue.
       for (Intent intent : sAlarmQueue) {
-        executeDartCallbackInBackgroundIsolate(intent, null);
+        executeDartCallbackInBackgroundIsolate(context, intent, null);
       }
       sAlarmQueue.clear();
     }
@@ -164,7 +166,12 @@ public class AlarmService extends JobIntentService {
    * corresponds to a callback registered with the Dart VM.
    */
   private static void executeDartCallbackInBackgroundIsolate(
-      Intent intent, final CountDownLatch latch) {
+      Context context, Intent intent, final CountDownLatch latch) {
+    if (screenWakeLock == null) {
+      PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+      screenWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "mocha:event_trigger");
+      screenWakeLock.acquire(61*60*1000L /*61 minutes*/);
+    }
     // Grab the handle for the callback associated with this alarm. Pay close
     // attention to the type of the callback handle as storing this value in a
     // variable of the wrong size will cause the callback lookup to fail.
@@ -205,6 +212,10 @@ public class AlarmService extends JobIntentService {
     //                    when reading the source code. Especially on the Dart side.
     sBackgroundChannel.invokeMethod(
         "", new Object[] {callbackHandle, intent.getIntExtra("id", -1)}, result);
+
+    if (screenWakeLock != null) {
+      screenWakeLock.release();
+    }
   }
 
   private static void scheduleAlarm(
@@ -492,7 +503,7 @@ public class AlarmService extends JobIntentService {
             new Runnable() {
               @Override
               public void run() {
-                executeDartCallbackInBackgroundIsolate(intent, latch);
+                executeDartCallbackInBackgroundIsolate(getApplicationContext(), intent, latch);
               }
             });
 
