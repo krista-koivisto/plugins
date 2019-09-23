@@ -1,3 +1,8 @@
+## 0.4.5
+
+* Added (forced) WakeLock with max. 61 minute window.
+* Added support for checking if an alarm by a certain id has been set.
+
 ## 0.4.4
 
 * Add `id` to `callback` if it is of type `Function(int)`
