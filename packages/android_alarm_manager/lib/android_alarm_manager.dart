@@ -280,4 +280,15 @@ class AndroidAlarmManager {
         await _channel.invokeMethod<bool>('Alarm.cancel', <dynamic>[id]);
     return (r == null) ? false : r;
   }
+
+  /// Checks whether a timer exists.
+  ///
+  /// If a timer has been scheduled with `id`, then this function will return
+  /// true.
+  ///
+  /// Returns a [Future] that resolves to `true` if alarm exists and `false` if
+  /// alarm does not exist.
+  static Future<bool> exists(int id) async {
+    return await _channel.invokeMethod<bool>('Alarm.exists', <dynamic>[id]);
+  }
 }

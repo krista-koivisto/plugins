@@ -1,8 +1,6 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+package io.flutter.plugins.androidalarmmanager;// Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-package io.flutter.plugins.androidalarmmanager;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -11,6 +9,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 import androidx.core.app.AlarmManagerCompat;
 import androidx.core.app.JobIntentService;
 import io.flutter.plugin.common.MethodChannel;
@@ -22,7 +22,6 @@ import io.flutter.view.FlutterRunArguments;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -32,19 +31,16 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class AlarmService extends JobIntentService {
-  // TODO(mattcarroll): tags should be private. Make private if no public usage.
-  public static final String TAG = "AlarmService";
+  private static final String TAG = "AlarmService";
   private static final String CALLBACK_HANDLE_KEY = "callback_handle";
   private static final String PERSISTENT_ALARMS_SET_KEY = "persistent_alarm_ids";
   private static final String SHARED_PREFERENCES_KEY = "io.flutter.android_alarm_manager_plugin";
   private static final int JOB_ID = 1984; // Random job ID.
   private static final Object sPersistentAlarmsLock = new Object();
 
-  // TODO(mattcarroll): make sIsIsolateRunning per-instance, not static.
   private static AtomicBoolean sIsIsolateRunning = new AtomicBoolean(false);
 
-  // TODO(mattcarroll): make sAlarmQueue per-instance, not static.
-  private static List<Intent> sAlarmQueue = Collections.synchronizedList(new LinkedList<Intent>());
+  private static final List<Intent> sAlarmQueue = Collections.synchronizedList(new LinkedList<Intent>());
 
   /** Background Dart execution context. */
   private static FlutterNativeView sBackgroundFlutterView;
@@ -83,34 +79,32 @@ public class AlarmService extends JobIntentService {
    * </ul>
    */
   public static void startBackgroundIsolate(Context context, long callbackHandle) {
-    // TODO(mattcarroll): re-arrange order of operations. The order is strange - there are 3
-    // conditions that must be met for this method to do anything but they're split up for no
-    // apparent reason. Do the qualification checks first, then execute the method's logic.
     FlutterMain.ensureInitializationComplete(context, null);
     String mAppBundlePath = FlutterMain.findAppBundlePath(context);
     FlutterCallbackInformation flutterCallback =
-        FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-    if (flutterCallback == null) {
-      Log.e(TAG, "Fatal: failed to find callback");
+            FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
+
+    if (mAppBundlePath == null || sIsIsolateRunning.get()) {
       return;
+    }
+
+    if (sPluginRegistrantCallback == null) {
+      throw new PluginRegistrantException();
     }
 
     // Note that we're passing `true` as the second argument to our
     // FlutterNativeView constructor. This specifies the FlutterNativeView
     // as a background view and does not create a drawing surface.
     sBackgroundFlutterView = new FlutterNativeView(context, true);
-    if (mAppBundlePath != null && !sIsIsolateRunning.get()) {
-      if (sPluginRegistrantCallback == null) {
-        throw new PluginRegistrantException();
-      }
-      Log.i(TAG, "Starting AlarmService...");
-      FlutterRunArguments args = new FlutterRunArguments();
-      args.bundlePath = mAppBundlePath;
-      args.entrypoint = flutterCallback.callbackName;
-      args.libraryPath = flutterCallback.callbackLibraryPath;
-      sBackgroundFlutterView.runFromBundle(args);
-      sPluginRegistrantCallback.registerWith(sBackgroundFlutterView.getPluginRegistry());
-    }
+    Log.i(TAG, "Starting AlarmService...");
+
+    FlutterRunArguments args = new FlutterRunArguments();
+    args.bundlePath = mAppBundlePath;
+    args.entrypoint = flutterCallback.callbackName;
+    args.libraryPath = flutterCallback.callbackLibraryPath;
+
+    sBackgroundFlutterView.runFromBundle(args);
+    sPluginRegistrantCallback.registerWith(sBackgroundFlutterView.getPluginRegistry());
   }
 
   /**
@@ -120,16 +114,14 @@ public class AlarmService extends JobIntentService {
    * AlarmService.initialized} message. Processes all alarm events that came in while the isolate
    * was starting.
    */
-  // TODO(mattcarroll): consider making this method package private
   public static void onInitialized() {
     Log.i(TAG, "AlarmService started!");
     sIsIsolateRunning.set(true);
     synchronized (sAlarmQueue) {
       // Handle all the alarm events received before the Dart isolate was
       // initialized, then clear the queue.
-      Iterator<Intent> i = sAlarmQueue.iterator();
-      while (i.hasNext()) {
-        executeDartCallbackInBackgroundIsolate(i.next(), null);
+      for (Intent intent : sAlarmQueue) {
+        executeDartCallbackInBackgroundIsolate(intent, null);
       }
       sAlarmQueue.clear();
     }
@@ -336,8 +328,16 @@ public class AlarmService extends JobIntentService {
     manager.cancel(existingIntent);
   }
 
+  public static Boolean alarmExists(Context context, int requestCode) {
+    Intent alarm = new Intent(context, AlarmBroadcastReceiver.class);
+    PendingIntent existingIntent =
+            PendingIntent.getBroadcast(context, requestCode, alarm, PendingIntent.FLAG_NO_CREATE);
+
+    return existingIntent != null;
+  }
+
   private static String getPersistentAlarmKey(int requestCode) {
-    return "android_alarm_manager/persistent_alarm_" + Integer.toString(requestCode);
+    return "android_alarm_manager/persistent_alarm_" + requestCode;
   }
 
   private static void addPersistentAlarm(
@@ -385,10 +385,10 @@ public class AlarmService extends JobIntentService {
     SharedPreferences p = context.getSharedPreferences(SHARED_PREFERENCES_KEY, 0);
     synchronized (sPersistentAlarmsLock) {
       Set<String> persistentAlarms = p.getStringSet(PERSISTENT_ALARMS_SET_KEY, null);
-      if ((persistentAlarms == null) || !persistentAlarms.contains(requestCode)) {
+      if ((persistentAlarms == null) || !persistentAlarms.contains(Integer.toString(requestCode))) {
         return;
       }
-      persistentAlarms.remove(requestCode);
+      persistentAlarms.remove(Integer.toString(requestCode));
       String key = getPersistentAlarmKey(requestCode);
       p.edit().remove(key).putStringSet(PERSISTENT_ALARMS_SET_KEY, persistentAlarms).apply();
 
@@ -407,14 +407,13 @@ public class AlarmService extends JobIntentService {
         return;
       }
 
-      Iterator<String> it = persistentAlarms.iterator();
-      while (it.hasNext()) {
-        int requestCode = Integer.parseInt(it.next());
+      for (String persistentAlarm : persistentAlarms) {
+        int requestCode = Integer.parseInt(persistentAlarm);
         String key = getPersistentAlarmKey(requestCode);
         String json = p.getString(key, null);
         if (json == null) {
           Log.e(
-              TAG, "Data for alarm request code " + Integer.toString(requestCode) + " is invalid.");
+                  TAG, "Data for alarm request code " + requestCode + " is invalid.");
           continue;
         }
         try {
@@ -428,17 +427,17 @@ public class AlarmService extends JobIntentService {
           long intervalMillis = alarm.getLong("intervalMillis");
           long callbackHandle = alarm.getLong("callbackHandle");
           scheduleAlarm(
-              context,
-              requestCode,
-              alarmClock,
-              allowWhileIdle,
-              repeating,
-              exact,
-              wakeup,
-              startMillis,
-              intervalMillis,
-              false,
-              callbackHandle);
+                  context,
+                  requestCode,
+                  alarmClock,
+                  allowWhileIdle,
+                  repeating,
+                  exact,
+                  wakeup,
+                  startMillis,
+                  intervalMillis,
+                  false,
+                  callbackHandle);
         } catch (JSONException e) {
           Log.e(TAG, "Data for alarm request code " + requestCode + " is invalid: " + json);
         }
@@ -474,7 +473,7 @@ public class AlarmService extends JobIntentService {
    * callbacks have been executed.
    */
   @Override
-  protected void onHandleWork(final Intent intent) {
+  protected void onHandleWork(@NonNull final Intent intent) {
     // If we're in the middle of processing queued alarms, add the incoming
     // intent to the queue and return.
     synchronized (sAlarmQueue) {

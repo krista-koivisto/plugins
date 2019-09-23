@@ -137,6 +137,11 @@ public class AndroidAlarmManagerPlugin implements MethodCallHandler, ViewDestroy
         int requestCode = ((JSONArray) arguments).getInt(0);
         AlarmService.cancel(mContext, requestCode);
         result.success(true);
+      } else if (method.equals("Alarm.exists")) {
+        // This message indicates that the Flutter app would like to cancel a previously
+        // scheduled task.
+        int requestCode = ((JSONArray) arguments).getInt(0);
+        result.success(AlarmService.alarmExists(mContext, requestCode));
       } else {
         result.notImplemented();
       }
@@ -157,6 +162,7 @@ public class AndroidAlarmManagerPlugin implements MethodCallHandler, ViewDestroy
    * <p>Returns true if the given {@code nativeView} was successfully stored by this plugin, or
    * false if a different {@link FlutterNativeView} was already registered with this plugin.
    */
+  @SuppressWarnings("JavadocReference")
   @Override
   public boolean onViewDestroy(FlutterNativeView nativeView) {
     return AlarmService.setBackgroundFlutterView(nativeView);
