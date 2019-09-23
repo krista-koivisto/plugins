@@ -91,7 +91,7 @@ class AndroidAlarmManager {
   /// The timer is uniquely identified by `id`. Calling this function again
   /// with the same `id` will cancel and replace the existing timer.
   ///
-  /// `id` will passed to `callback` if it is of type `Function(int)`
+  /// `id` will passed to `callback` if it is of type `Function(int)`.
   ///
   /// If `alarmClock` is passed as `true`, the timer will be created with
   /// Android's `AlarmManagerCompat.setAlarmClock`.
