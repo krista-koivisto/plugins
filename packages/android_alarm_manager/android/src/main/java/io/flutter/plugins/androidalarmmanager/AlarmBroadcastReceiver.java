@@ -7,8 +7,12 @@ package io.flutter.plugins.androidalarmmanager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.PowerManager;
 
-public class AlarmBroadcastReceiver extends BroadcastReceiver {
+import androidx.legacy.content.WakefulBroadcastReceiver;
+
+public class AlarmBroadcastReceiver extends WakefulBroadcastReceiver {
+  private PowerManager.WakeLock screenWakeLock;
   /**
    * Invoked by the OS when a timer goes off.
    *
@@ -26,6 +30,16 @@ public class AlarmBroadcastReceiver extends BroadcastReceiver {
    */
   @Override
   public void onReceive(Context context, Intent intent) {
+    if (screenWakeLock == null) {
+      PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+      screenWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "mocha:event_trigger");
+      screenWakeLock.acquire(61*60*1000L /*61 minutes*/);
+    }
+
     AlarmService.enqueueAlarmProcessing(context, intent);
+
+    if (screenWakeLock != null) {
+      screenWakeLock.release();
+    }
   }
 }
