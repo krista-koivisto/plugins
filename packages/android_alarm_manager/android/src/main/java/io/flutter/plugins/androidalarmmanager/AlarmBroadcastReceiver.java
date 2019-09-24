@@ -11,7 +11,7 @@ import android.os.PowerManager;
 
 import androidx.legacy.content.WakefulBroadcastReceiver;
 
-public class AlarmBroadcastReceiver extends WakefulBroadcastReceiver {
+public class AlarmBroadcastReceiver extends BroadcastReceiver {
   /**
    * Invoked by the OS when a timer goes off.
    *

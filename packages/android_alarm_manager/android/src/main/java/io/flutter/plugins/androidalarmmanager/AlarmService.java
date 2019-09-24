@@ -32,7 +32,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class AlarmService extends JobIntentService {
-  private static final String TAG = "AlarmService";
+  private static final String TAG = "MochaAlarm";
   private static final String CALLBACK_HANDLE_KEY = "callback_handle";
   private static final String PERSISTENT_ALARMS_SET_KEY = "persistent_alarm_ids";
   private static final String SHARED_PREFERENCES_KEY = "io.flutter.android_alarm_manager_plugin";
@@ -74,13 +74,17 @@ public class AlarmService extends JobIntentService {
     }
     if (screenWakeLock == null) {
       PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-      screenWakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK, "mocha:event_trigger");
+      screenWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mocha:event_trigger");
       screenWakeLock.acquire(lockTime);
+      Log.i(TAG, "Acquired a (partial) wake lock for " + lockTime);
     }
   }
 
   public static void releaseWakeLock() {
-    screenWakeLock.release();
+    Log.i(TAG, "Releasing wake lock");
+    if (screenWakeLock.isHeld()) {
+      screenWakeLock.release();
+    }
   }
 
   /**
@@ -230,10 +234,6 @@ public class AlarmService extends JobIntentService {
     //                    when reading the source code. Especially on the Dart side.
     sBackgroundChannel.invokeMethod(
         "", new Object[] {callbackHandle, intent.getIntExtra("id", -1)}, result);
-
-    if (screenWakeLock != null) {
-      screenWakeLock.release();
-    }
   }
 
   private static void scheduleAlarm(
