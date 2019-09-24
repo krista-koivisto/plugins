@@ -144,7 +144,8 @@ public class AndroidAlarmManagerPlugin implements MethodCallHandler, ViewDestroy
         result.success(AlarmService.alarmExists(mContext, requestCode));
       } else if (method.equals("Alarm.acquireWakeLock")) {
         // This message indicates that the Flutter app would like to acquire a wake lock.
-        AlarmService.acquireWakeLock(mContext, 61*60*1000L);
+        int lockTime = ((JSONArray) arguments).getInt(0);
+        AlarmService.acquireWakeLock(mContext, lockTime);
         result.success(true);
       } else if (method.equals("Alarm.releaseWakeLock")) {
         // This message indicates the the Flutter app would like to release its
