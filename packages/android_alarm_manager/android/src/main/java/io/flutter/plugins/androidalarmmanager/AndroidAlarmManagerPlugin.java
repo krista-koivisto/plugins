@@ -138,10 +138,19 @@ public class AndroidAlarmManagerPlugin implements MethodCallHandler, ViewDestroy
         AlarmService.cancel(mContext, requestCode);
         result.success(true);
       } else if (method.equals("Alarm.exists")) {
-        // This message indicates that the Flutter app would like to cancel a previously
-        // scheduled task.
+        // This message indicates that the Flutter app would like to know if a task by id
+        // requestCode exists.
         int requestCode = ((JSONArray) arguments).getInt(0);
         result.success(AlarmService.alarmExists(mContext, requestCode));
+      } else if (method.equals("Alarm.acquireWakeLock")) {
+        // This message indicates that the Flutter app would like to acquire a wake lock.
+        AlarmService.acquireWakeLock(mContext, 61*60*1000L);
+        result.success(true);
+      } else if (method.equals("Alarm.releaseWakeLock")) {
+        // This message indicates the the Flutter app would like to release its
+        // previously acquired wake lock.
+        AlarmService.releaseWakeLock();
+        result.success(true);
       } else {
         result.notImplemented();
       }

@@ -291,4 +291,21 @@ class AndroidAlarmManager {
   static Future<bool> exists(int id) async {
     return await _channel.invokeMethod<bool>('Alarm.exists', <dynamic>[id]);
   }
+
+  /// Acquires a wake lock on the device.
+  ///
+  /// Keeps the device CPU awake for `milliseconds` or until [releaseWakeLock]
+  /// is called.
+  static Future<void> acquireWakeLock(int milliseconds) async {
+    await _channel.invokeMethod<bool>('Alarm.acquireWakeLock', <dynamic>[milliseconds]);
+  }
+
+  /// Releases a previously requested wake lock.
+  ///
+  /// Allows the device's CPU to go back to sleep on behalf of this alarm
+  /// manager. Does not release wake locks by other alarm managers or other
+  /// applications on the device.
+  static Future<void> releaseWakeLock() async {
+    await _channel.invokeMethod<bool>('Alarm.releaseWakeLock', <dynamic>[]);
+  }
 }

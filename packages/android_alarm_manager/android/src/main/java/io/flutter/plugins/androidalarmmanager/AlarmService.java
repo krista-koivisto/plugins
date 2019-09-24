@@ -38,7 +38,7 @@ public class AlarmService extends JobIntentService {
   private static final String SHARED_PREFERENCES_KEY = "io.flutter.android_alarm_manager_plugin";
   private static final int JOB_ID = 1984; // Random job ID.
   private static final Object sPersistentAlarmsLock = new Object();
-  private static  PowerManager.WakeLock screenWakeLock;
+  private static PowerManager.WakeLock screenWakeLock;
 
   private static AtomicBoolean sIsIsolateRunning = new AtomicBoolean(false);
 
@@ -58,6 +58,29 @@ public class AlarmService extends JobIntentService {
   // Schedule the alarm to be handled by the AlarmService.
   public static void enqueueAlarmProcessing(Context context, Intent alarmContext) {
     enqueueWork(context, AlarmService.class, JOB_ID, alarmContext);
+  }
+
+  /**
+   * Acquires a wake lock for ({@code lockTime}) milliseconds.
+   *
+   * <p>Forces the device's CPU to stay awake until the wake lock is either
+   * released or the allocated time runs out.
+   *
+   * ({@code lockTime}) will be set to 10 minutes if a value less than 1 is given.
+   */
+  public static void acquireWakeLock(Context context, long lockTime) {
+    if (lockTime < 1) {
+      lockTime = 10*60*1000L;
+    }
+    if (screenWakeLock == null) {
+      PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+      screenWakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK, "mocha:event_trigger");
+      screenWakeLock.acquire(lockTime);
+    }
+  }
+
+  public static void releaseWakeLock() {
+    screenWakeLock.release();
   }
 
   /**
@@ -167,11 +190,6 @@ public class AlarmService extends JobIntentService {
    */
   private static void executeDartCallbackInBackgroundIsolate(
       Context context, Intent intent, final CountDownLatch latch) {
-    if (screenWakeLock == null) {
-      PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-      screenWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "mocha:event_trigger");
-      screenWakeLock.acquire(61*60*1000L /*61 minutes*/);
-    }
     // Grab the handle for the callback associated with this alarm. Pay close
     // attention to the type of the callback handle as storing this value in a
     // variable of the wrong size will cause the callback lookup to fail.

@@ -7,6 +7,7 @@ package io.flutter.plugins.androidalarmmanager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.PowerManager;
 
 import androidx.legacy.content.WakefulBroadcastReceiver;
 
