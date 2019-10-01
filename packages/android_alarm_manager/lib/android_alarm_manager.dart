@@ -300,6 +300,14 @@ class AndroidAlarmManager {
     await _channel.invokeMethod<bool>('Alarm.acquireWakeLock', <dynamic>[milliseconds]);
   }
 
+  /// Checks whether a wake lock is currently being held.
+  ///
+  /// Returns a [Future] that resolves to `true` if a wake lock is being held
+  /// by this alarm manager and `false` otherwise.
+  static Future<bool> hasWakeLock() async {
+    return await _channel.invokeMethod<bool>('Alarm.hasWakeLock');
+  }
+
   /// Releases a previously requested wake lock.
   ///
   /// Allows the device's CPU to go back to sleep on behalf of this alarm

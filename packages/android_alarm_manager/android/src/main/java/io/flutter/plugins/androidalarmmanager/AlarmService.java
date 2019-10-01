@@ -72,17 +72,32 @@ public class AlarmService extends JobIntentService {
     if (lockTime < 1) {
       lockTime = 10*60*1000L;
     }
-    if (screenWakeLock == null) {
-      PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-      screenWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mocha:event_trigger");
-      screenWakeLock.acquire(lockTime);
-      Log.i(TAG, "Acquired a (partial) wake lock for " + lockTime);
+    if (screenWakeLock != null) {
+      releaseWakeLock();
+      screenWakeLock = null;
     }
+
+    PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+    screenWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mocha:event_trigger");
+    screenWakeLock.acquire(lockTime);
+    Log.i(TAG, "Acquired a (partial) wake lock for " + lockTime);
   }
 
+  /**
+   * Check whether a wake lock is currently being held.
+   *
+   * @return true if a wake lock is held, otherwise false.
+   */
+  public static Boolean hasWakeLock() {
+    return (screenWakeLock != null && screenWakeLock.isHeld());
+  }
+
+  /**
+   * Releases previously acquired wake lock.
+   */
   public static void releaseWakeLock() {
     Log.i(TAG, "Releasing wake lock");
-    if (screenWakeLock.isHeld()) {
+    if (screenWakeLock != null && screenWakeLock.isHeld()) {
       screenWakeLock.release();
     }
   }
